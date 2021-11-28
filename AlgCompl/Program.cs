@@ -8,6 +8,7 @@ using BenchmarkDotNet.Running;
 
 namespace AlgCompl1
 {
+    [MemoryDiagnoser]
     public class Sort
     {
         public static int MinHeapSize { get; set; }

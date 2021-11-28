@@ -15,6 +15,7 @@ namespace AlgCompl2
         public Dictionary<char, Node> Edges = new Dictionary<char, Node>();
     }
 
+    [MemoryDiagnoser]
     public class Trie
     {
         public Node Root = new Node();

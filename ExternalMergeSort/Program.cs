@@ -7,6 +7,7 @@ using BenchmarkDotNet.Running;
 
 namespace ExternalMergeSort
 {
+    [MemoryDiagnoser]
     public class SortLarge
     {
         [Params(10000, 20000, 30000)]
