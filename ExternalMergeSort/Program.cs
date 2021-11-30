@@ -40,8 +40,6 @@ namespace ExternalMergeSort
                     sw.WriteLine(l);
                     counter++;
 
-                    // If the file is big, then make a new split,
-                    // however if this was the last line then don't bother
                     if (counter >= maxLength)
                     {
                         sw.Close();
@@ -61,17 +59,11 @@ namespace ExternalMergeSort
         {
             foreach (string path in Directory.GetFiles($"{path1}\\", "split*.txt"))
             {
-                // Read all lines into an array
                 string[] contents = File.ReadAllLines(path);
-                // Sort the in-memory array
                 var sorted = AlgCompl1.Sort.TournamentSort(contents.Select(s => int.Parse(s)));
-                // Create the 'sorted' filename
                 string newpath = path.Replace("split", "sorted");
-                // Write it
                 File.WriteAllLines(newpath, sorted.Select(i => i.ToString()));
-                // Delete the unsorted chunk
                 File.Delete(path);
-                // Free the in-memory sorted array
                 contents = null;
                 GC.Collect();
             }
@@ -80,67 +72,49 @@ namespace ExternalMergeSort
         public static void MergeTheChunks(string path1)
         {
             string[] paths = Directory.GetFiles($"{path1}\\", "sorted*.txt");
-            int chunks = paths.Length; // Number of chunks
+            int chunks = paths.Length;
 
-            // Open the files
             StreamReader[] readers = new StreamReader[chunks];
             for (int i = 0; i < chunks; i++)
                 readers[i] = new StreamReader(paths[i]);
 
-            // Make the queues
-            Queue<int>[] queues = new Queue<int>[chunks];
-            for (int i = 0; i < chunks; i++)
-                queues[i] = new Queue<int>();
-
-            // Load the queues
-            for (int i = 0; i < chunks; i++)
-                LoadQueue(queues[i], readers[i]);
-
-            // Merge!
+            var map = new Dictionary<int, int>();
+            var minHeap = new AlgCompl1.MinHeap(chunks);
             StreamWriter sw = new StreamWriter($"{path1}\\BigFileSorted.txt");
-            bool done = false;
-            int lowest_index, j;
-            int lowest_value;
-            while (!done)
+
+            for (int i = 0; i < chunks; i++)
             {
-                // Find the chunk with the lowest value
-                lowest_index = -1;
-                lowest_value = -1;
-                for (j = 0; j < chunks; j++)
+                if (!readers[i].EndOfStream)
                 {
-                    if (queues[j] != null && queues[j].Count() > 0)
-                    {
-                        if (lowest_index < 0 || queues[j].Peek() < lowest_value)
-                        {
-                            lowest_index = j;
-                            lowest_value = queues[j].Peek();
-                        }
-                    }
+                    int value = int.Parse(readers[i].ReadLine());
+                    minHeap.Add(value);
+                    map.Add(value, i);
                 }
+            }
 
-                // Was nothing found in any queue? We must be done then.
-                if (lowest_index == -1) { done = true; break; }
-
-                // Output it
-                sw.WriteLine(lowest_value);
-
-                // Remove from queue
-                queues[lowest_index].Dequeue();
-                // Have we emptied the queue? Top it up
-                if (queues[lowest_index].Count == 0)
+            while (AllFilesEmpty(readers))
+            {
+                if (!minHeap.IsEmpty())
                 {
-                    LoadQueue(queues[lowest_index],
-                      readers[lowest_index]);
-                    // Was there nothing left to read?
-                    if (queues[lowest_index].Count == 0)
+                    int minValue = minHeap.Pop();
+                    sw.WriteLine(minValue);
+                    int minIndex = map[minValue];
+                    if (!readers[minIndex].EndOfStream)
                     {
-                        queues[lowest_index] = null;
+                        int value = int.Parse(readers[minIndex].ReadLine());
+                        map.Add(value, minIndex);
+                        minHeap.Add(value);
                     }
                 }
             }
+
+            while (!minHeap.IsEmpty())
+            {
+                sw.WriteLine(minHeap.Pop());
+            }
+
             sw.Close();
 
-            // Close and delete the files
             for (int i = 0; i < chunks; i++)
             {
                 readers[i].Close();
@@ -148,13 +122,16 @@ namespace ExternalMergeSort
             }
         }
 
-        public static void LoadQueue(Queue<int> queue,
-          StreamReader file)
+        public static bool AllFilesEmpty(StreamReader[] files)
         {
-            while (file.Peek() >= 0)
+            foreach (var f in files)
             {
-                queue.Enqueue(int.Parse(file.ReadLine()));
+                if (!f.EndOfStream)
+                {
+                    return true;
+                }
             }
+            return false;
         }
 
         public static void GenerateFile(string path, int n)
